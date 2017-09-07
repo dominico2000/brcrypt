@@ -17,7 +17,7 @@ public class Brstub
     /// <summary>
     /// Get decrypted value
     /// </summary>
-    public byte[] Decrypted { get => decrypted; }
+    public byte[] Decrypted { get => decrypted; set => decrypted = value; }
 
     /// <summary>
     /// Type of register key.
@@ -191,7 +191,7 @@ public class Brstub
             aesecr.IV = IV;
 
 
-            var encryptor = aesecr.CreateEncryptor(aesecr.Key, aesecr.IV);
+            ICryptoTransform encryptor = aesecr.CreateEncryptor(aesecr.Key, aesecr.IV);
 
             // Create the streams used for encryption. 
             using (var msEncrypt = new MemoryStream())
@@ -216,7 +216,7 @@ public class Brstub
     /// <param name="key">Key as byte array.</param>
     /// <param name="IV">IV as byte array.</param>
     /// <returns>Byte array of decrypted file.</returns>
-    public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
+   /* public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
     {
 
         
@@ -236,18 +236,27 @@ public class Brstub
             {
                 using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
                 {
-                    csDecrypt.Write(encFile, 0, encFile.Length);
-                    csDecrypt.Close();
-                }
+                    //csDecrypt.Write(encFile, 0, encFile.Length);
+                    //csDecrypt.Close();
+                }   
 
                 decrypted = msDecrypt.ToArray();
             }
         }
 
         return decrypted;
+    }*/
+    public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
+    {
+        using (AesCryptoServiceProvider aes = new AesCryptoServiceProvider())
+        {
+            var decryptor = aes.CreateDecryptor(key, IV);
+            decrypted = decryptor.TransformFinalBlock(encFile, 0, encFile.Length);
+        }
+        return decrypted;
     }
 
-    
+
     /// <summary>
     /// Check's decrypted file is correct.
     /// </summary>
