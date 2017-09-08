@@ -11,67 +11,81 @@ namespace Brcrypt
 {
     class Program
     {
-        string pathToFile;
-        string pathToEncFile;
+        private string pathToFile;
+        private string pathToEncFile;
+        private string pathToKeyFile;
 
-       
+        private string tmpStr;
 
         enum Errors
         {
             tooFewArgs,
             inputFileDontExist,
-            encryptionError
+            encryptionError,
+            savingFileError
         }
 
 
         static void Main(string[] args)
         {
             Program brcrypt = new Program();
-            if( args.Length != 2)
+            //read args
+            if ( args.Length != 3)
             {
                 brcrypt.ErrorHndlr(Errors.tooFewArgs);       
             }
             brcrypt.pathToFile = args[0];
             brcrypt.pathToEncFile = args[1];
+            brcrypt.pathToKeyFile = args[2];
 
-            if( !File.Exists( brcrypt.pathToFile ) )
+            //check file existance
+            if ( !File.Exists( brcrypt.pathToFile ) )
             {
                 brcrypt.ErrorHndlr(Errors.inputFileDontExist);
             }
 
+            
             System.Console.WriteLine("Reading file {0}...", brcrypt.pathToFile);
-            byte[] inputFile = File.ReadAllBytes(brcrypt.pathToFile);
+            byte[] inputFile = File.ReadAllBytes(brcrypt.pathToFile);   //read file
 
             Brstub brstub = new Brstub();   //make object brstub
 
             System.Console.WriteLine("Genrating MD5 hash...");
             string inputFileMD5 = brstub.GetMd5Hash(inputFile);  //make MD5 hash of inputFile
-            System.Console.WriteLine(inputFileMD5);
+            //System.Console.WriteLine(inputFileMD5);   //debug
 
             System.Console.WriteLine("Encoding file {0}...", brcrypt.pathToFile);
 
-            var encryptionData = brstub.Encrypt(inputFile);
+            byte[] key = brstub.GenKey();   //generate key
+            byte[] encrypted = brstub.Encrypt(inputFile, key);  //encrypted data
 
-            byte[] encrypted = encryptionData.Item1;
-            byte[] key = encryptionData.Item2;
-            byte[] IV = encryptionData.Item3;
 
             //check encryption
 
-            brstub.Decrypted = brstub.Decrypt(encrypted,key, IV);
-            System.Console.WriteLine("Enc:{0}", brstub.GetMd5Hash(encrypted));
-            System.Console.WriteLine("Dec:{0}", brstub.GetMd5Hash(brstub.Decrypted) ); 
+            byte[] decrypted = brstub.Decrypt(encrypted, key);  //decrypted data
 
-            if (brstub.CheckMD5(inputFileMD5))
+            /*tesing line for enc troubles
+            System.Console.WriteLine("Enc:{0}", brstub.GetMd5Hash(encrypted));
+            System.Console.WriteLine("Dec:{0}", brstub.GetMd5Hash(decrypted));
+            */
+            
+
+            if (brstub.CheckMD5(decrypted, inputFileMD5))
             {
                 System.Console.WriteLine("Encrypted succesfull!");
 
-                System.Console.WriteLine("Saving to file {0}", brcrypt.pathToEncFile);
+                System.Console.WriteLine("Saving data to file {0}...", brcrypt.pathToEncFile);
                 File.WriteAllBytes(brcrypt.pathToEncFile, encrypted);
 
-                System.Console.WriteLine("Key:{0}", key);
-                System.Console.WriteLine("IV:{0}", IV);
+                System.Console.WriteLine("Saving key to file {0}...", brcrypt.pathToKeyFile);
+                File.WriteAllBytes(brcrypt.pathToKeyFile, key);
+
+                //System.Console.WriteLine("Key:{0}", key);
                 System.Console.WriteLine("MD5:{0}", inputFileMD5);
+
+
+                brcrypt.checkSavedFiles(inputFileMD5);
+                
                 
             }
             else
@@ -89,7 +103,7 @@ namespace Brcrypt
             {
                 case Errors.tooFewArgs:
                     System.Console.WriteLine("Too few arguments!");
-                    System.Console.WriteLine("Brcrypt.exe [path_to_input_file] [path_to_out_encrypted_file]");
+                    System.Console.WriteLine("Brcrypt.exe [path_to_input_file] [path_to_out_encrypted_file] [path_to_key]");
                     System.Environment.Exit(1);
                     break;
                 case Errors.inputFileDontExist:
@@ -100,10 +114,37 @@ namespace Brcrypt
                     System.Console.WriteLine("Unknow encryption error.", pathToFile);
                     System.Environment.Exit(3);
                     break;
+                case Errors.savingFileError:
+                    System.Console.WriteLine("Saving data failed!");
+                    System.Console.WriteLine("MD5:{0}", tmpStr);
+                    break;
             }
              
         }
-    }
 
+        void checkSavedFiles(string MD5)
+        {
+            byte[] encrypted = File.ReadAllBytes(pathToEncFile);
+            byte[] key = File.ReadAllBytes(pathToKeyFile);
+
+            Brstub br = new Brstub();
+
+            byte[] decrypted = br.Decrypt(encrypted, key);
+
+            if( br.CheckMD5(decrypted, MD5) )
+            {
+                System.Console.WriteLine("Saving data succesfull!");                             
+            }
+            else
+            {
+                tmpStr = br.GetMd5Hash(decrypted);
+                ErrorHndlr(Errors.savingFileError);
+               
+            }
+
+        }
+
+       
+    }
     
 }

